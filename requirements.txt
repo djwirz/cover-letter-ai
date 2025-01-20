@@ -5,4 +5,6 @@ pydantic
 openai
 langchain
 langchain-community
+langchain-openai
 supabase
+tiktoken

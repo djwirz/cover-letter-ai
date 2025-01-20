@@ -1,33 +1,52 @@
-import os
-from dotenv import load_dotenv
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from langchain.chains import LLMChain
+from typing import List, Dict
 
-load_dotenv()
+class EnhancedAIService:
+    def __init__(self, vector_service):
+        self.vector_service = vector_service
+        self.llm = ChatOpenAI(model="gpt-4")
+    
+    async def generate_cover_letter(
+        self, 
+        job_description: str, 
+        context_documents: List,
+        preferences: Dict = None
+    ):
+        try:
+            # Extract content from context documents
+            context = "\n\n".join([
+                doc[0]['page_content'] for doc in context_documents
+            ])
+            
+            template = """You are an expert cover letter writer. 
+            Use the provided examples and context to generate a compelling letter.
+            Maintain professionalism while showcasing relevant experience.
 
-class AIService:
-    def __init__(self):
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not openai_api_key:
-            raise ValueError("OPENAI_API_KEY not found. Please set it in your environment variables.")
-        self.llm = ChatOpenAI(model="gpt-4", temperature=0.7, openai_api_key=openai_api_key)
-        
-    async def generate_cover_letter(self, job_description: str, resume: str):
-        # Create system and user prompts
-        system_prompt = SystemMessagePromptTemplate.from_template("You are an expert cover letter writer.")
-        user_prompt = HumanMessagePromptTemplate.from_template("""
             Job Description: {job_description}
-            Resume: {resume}
-            Create a professional cover letter.
-        """)
-        
-        # Combine system and user messages into a chat prompt
-        prompt = ChatPromptTemplate.from_messages([system_prompt, user_prompt])
-        
-        # Create a chain that links the prompt to the LLM
-        chain = LLMChain(prompt=prompt, llm=self.llm)
-        
-        # Call the chain asynchronously with variables
-        return await chain.arun({"job_description": job_description, "resume": resume})
+            
+            Relevant Context:
+            {context}
+            
+            Preferences: {preferences}
+            
+            Generate a cover letter that:
+            1. Matches the tone and requirements of the job description
+            2. Incorporates relevant experience from the context
+            3. Is specific and tailored to this role
+            """
+            
+            prompt = ChatPromptTemplate.from_template(template)
+            
+            chain = prompt | self.llm
+            response = await chain.ainvoke({
+                "job_description": job_description,
+                "context": context,
+                "preferences": str(preferences if preferences else {})
+            })
+            
+            return response.content
+            
+        except Exception as e:
+            print(f"Error generating cover letter: {str(e)}")
+            raise e

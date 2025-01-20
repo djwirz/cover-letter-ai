@@ -1,4 +1,4 @@
-.PHONY: setup start stop run clean
+.PHONY: setup start stop run clean db-init
 
 setup: ## Setup Python environment
 	python3 -m venv venv
@@ -9,6 +9,9 @@ start: ## Start Supabase
 
 stop: ## Stop Supabase
 	supabase stop
+
+db-init: ## Initialize database schema
+	PGPASSWORD=postgres psql -h localhost -U postgres -p 54322 -d postgres -f init.sql
 
 run: ## Run FastAPI server
 	uvicorn app.main:app --reload
