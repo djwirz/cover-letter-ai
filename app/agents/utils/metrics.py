@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from logging import getLogger
 import traceback
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from app.models.schemas import SkillsAnalysis
 
 logger = getLogger(__name__)
@@ -153,6 +153,36 @@ class SkillsAnalysisAgent:
             self.logger.error(f"Error assessing proficiency: {str(e)}")
             return {}
 
+    async def _run_analysis_pipeline(self, text: str) -> Dict:
+        """Runs the complete analysis pipeline."""
+        try:
+            raw_analysis = await self.agent_executor.ainvoke({
+                "input": text,
+                "output_schema": self.skills_schema
+            })
+
+            structured_analysis = {
+                "technical_skills": [],
+                "soft_skills": [],
+                "achievements": []
+            }
+
+            # Process the raw analysis into structured format
+            if raw_result := await self._structure_analysis(raw_analysis["output"]):
+                structured_analysis.update(raw_result)
+
+            return {
+                "skills_analysis": structured_analysis,
+                "metadata": {
+                    "model_used": "gpt-4",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "version": "1.0"
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"Pipeline failed: {str(e)}")
+            raise
+
     async def _structure_analysis(self, raw_analysis: str) -> Dict:
         """Converts raw analysis into structured format."""
         prompt = f"""
@@ -179,23 +209,9 @@ class SkillsAnalysisAgent:
             if not resume_text or len(resume_text.strip()) < 50:
                 raise ValueError("Resume text too short or empty")
 
-            # Run analysis through the agent
-            raw_analysis = await self.agent_executor.ainvoke({
-                "input": resume_text
-            })
-
-            # Structure the analysis
-            structured_analysis = await self._structure_analysis(raw_analysis["output"])
+            # Run analysis
+            result = await self._run_analysis_pipeline(resume_text)
             
-            result = {
-                "skills_analysis": structured_analysis,
-                "metadata": {
-                    "model_used": "gpt-4",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "version": "1.0"
-                }
-            }
-
             # Validate output against schema
             try:
                 SkillsAnalysis(**result["skills_analysis"])

@@ -1,4 +1,4 @@
-.PHONY: setup start stop run clean db-init
+.PHONY: setup start stop run clean db-init test test-v
 
 setup: ## Setup Python environment
 	python3 -m venv venv
@@ -18,7 +18,15 @@ run: ## Run FastAPI server
 
 clean: ## Clean up environment
 	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	supabase stop
+
+test: ## Run tests
+	pytest tests/
+
+test-v: ## Run tests with verbose output
+	pytest tests/ -v
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

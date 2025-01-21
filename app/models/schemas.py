@@ -22,11 +22,15 @@ class GenerationResponse(BaseModel):
     metadata: Dict
     similar_documents: Optional[List[Dict]] = Field(default_factory=list)
 
-class SkillDetail(BaseModel):
+class TechnicalSkill(BaseModel):
     skill: str
-    level: Optional[str]
+    level: str
     years: Optional[float]
-    context: Optional[str]
+    context: str
+
+class SoftSkill(BaseModel):
+    skill: str
+    evidence: str
 
 class Achievement(BaseModel):
     description: str
@@ -34,7 +38,28 @@ class Achievement(BaseModel):
     skills_demonstrated: List[str]
 
 class SkillsAnalysis(BaseModel):
-    technical_skills: List[SkillDetail]
-    soft_skills: List[Dict[str, str]]
+    technical_skills: List[TechnicalSkill]
+    soft_skills: List[SoftSkill]
     achievements: List[Achievement]
-    metadata: Dict[str, Any]
+    metadata: Dict[str, str]
+
+class Requirement(BaseModel):
+    skill: str
+    description: str
+    years_experience: int = 0
+
+class CultureIndicator(BaseModel):
+    aspect: str
+    description: str
+
+class Responsibility(BaseModel):
+    responsibility: str
+    description: str
+
+class JobRequirementsResponse(BaseModel):
+    analysis: Dict[str, List[Dict[str, str]]]
+    vector_ids: Dict[str, str]
+
+class AnalyzeJobDescriptionRequest(BaseModel):
+    job_description: str
+    store_vectors: bool = True
