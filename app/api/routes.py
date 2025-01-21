@@ -5,6 +5,7 @@ from app.core.vector_store import VectorService
 from app.core.database import Database
 from app.models.schemas import DocumentRequest, DocumentType, GenerationRequest, GenerationResponse
 from typing import List
+from app.agents.skills_analysis import SkillsAnalysisAgent
 
 router = APIRouter()
 
@@ -61,4 +62,14 @@ async def generate_cover_letter(request: GenerationRequest):
         )
     except Exception as e:
         print(f"Debug - Error details: {str(e)}")  # Add debug logging
+        raise HTTPException(status_code=500, detail=str(e))
+    
+skills_agent = SkillsAnalysisAgent()
+
+@router.post("/analyze-skills")
+async def analyze_skills(request: DocumentRequest):
+    try:
+        analysis = await skills_agent.analyze(request.content)
+        return analysis
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
