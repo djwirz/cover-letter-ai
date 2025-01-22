@@ -1,17 +1,21 @@
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+from pydantic import Field
 
 # Explicitly load .env file
 load_dotenv()
 
 class Settings(BaseSettings):
+    """Application settings."""
+    openai_api_key: str = Field(..., env='OPENAI_API_KEY')
+    database_url: str = Field("sqlite+aiosqlite:///./test.db", env='DATABASE_URL')
+    debug_mode: bool = Field(False, env='DEBUG_MODE')
+    
     # OpenAI settings
-    OPENAI_API_KEY: str
     OPENAI_MODEL: str = "gpt-4"
     OPENAI_TEMPERATURE: float = 0.7
     
     # Database settings
-    DATABASE_URL: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "coverletter"
     
     # Vector store settings
@@ -22,6 +26,7 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
 
     class Config:
+        """Pydantic config."""
         env_file = ".env"
         env_file_encoding = "utf-8"
 
@@ -29,4 +34,4 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Add some debug printing to verify
-print(f"Loaded OPENAI_API_KEY: {'set' if settings.OPENAI_API_KEY else 'not set'}")
+print(f"Loaded OPENAI_API_KEY: {'set' if settings.openai_api_key else 'not set'}")

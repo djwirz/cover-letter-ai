@@ -1,25 +1,26 @@
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from typing import List, Dict
-from app.settings.config import settings  # Changed from app.config
+from app.settings.config import Settings
+from app.services.vector_service import VectorService
 
 class EnhancedAIService:
-    def __init__(self, vector_service):
+    def __init__(self, settings: Settings, vector_service: VectorService):
+        self.settings = settings
         self.vector_service = vector_service
-        self.llm = ChatOpenAI(model="gpt-4")
+        self.model = None
     
-    async def generate_cover_letter(
-        self, 
-        job_description: str, 
-        context_documents: List,
-        preferences: Dict = None
-    ):
+    async def initialize(self):
+        """Initialize AI model and resources"""
+        self.model = ChatOpenAI(model="gpt-4")
+    
+    async def close(self):
+        """Cleanup AI service resources"""
+        self.model = None
+    
+    async def generate_response(self, prompt: str, context: dict) -> str:
+        """Generate AI response with context"""
         try:
-            # Extract content from context documents
-            context = "\n\n".join([
-                doc[0]['page_content'] for doc in context_documents
-            ])
-            
             template = """You are an expert cover letter writer. 
             Use the provided examples and context to generate a compelling letter.
             Maintain professionalism while showcasing relevant experience.
@@ -39,11 +40,11 @@ class EnhancedAIService:
             
             prompt = ChatPromptTemplate.from_template(template)
             
-            chain = prompt | self.llm
+            chain = prompt | self.model
             response = await chain.ainvoke({
-                "job_description": job_description,
+                "job_description": prompt,
                 "context": context,
-                "preferences": str(preferences if preferences else {})
+                "preferences": str(context.get('preferences', {}))
             })
             
             return response.content
@@ -51,3 +52,8 @@ class EnhancedAIService:
         except Exception as e:
             print(f"Error generating cover letter: {str(e)}")
             raise e
+    
+    async def analyze_requirements(self, text: str) -> dict:
+        """Analyze job requirements"""
+        # Implementation of analyze_requirements method
+        pass
