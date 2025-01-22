@@ -1,7 +1,8 @@
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from app.models.schemas import DocumentType
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict, Any
+from app.settings.config import settings  # Changed from app.config
 
 class VectorService:
     def __init__(self, supabase_client):

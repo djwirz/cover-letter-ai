@@ -2,42 +2,21 @@ from typing import Dict, List
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
-
-class Requirement(BaseModel):
-    skill: str
-    description: str
-    years_experience: int = Field(default=0)
-
-class CultureIndicator(BaseModel):
-    aspect: str
-    description: str
-
-class Responsibility(BaseModel):
-    responsibility: str
-    description: str
-
-class JobRequirements(BaseModel):
-    core_requirements: List[Requirement] = Field(
-        description="List of essential skills/requirements with description and years of experience"
-    )
-    nice_to_have: List[Requirement] = Field(
-        description="List of preferred but not mandatory skills/qualifications"
-    )
-    culture_indicators: List[CultureIndicator] = Field(
-        description="Company culture aspects mentioned in the job description"
-    )
-    key_responsibilities: List[Responsibility] = Field(
-        description="Main job duties and responsibilities"
-    )
+from app.models.schemas import (
+    JobRequirements,
+    Requirement,
+    CultureIndicator,
+    Responsibility
+)
+import json
 
 class RequirementsAnalysisAgent:
     """Agent for analyzing job descriptions to extract structured requirements data."""
     
-    def __init__(self, model_name: str = "gpt-4-turbo-preview", temperature: float = 0.0):
+    def __init__(self):
         self.llm = ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature
+            model_name="gpt-4",
+            temperature=0.7
         )
         self.output_parser = PydanticOutputParser(pydantic_object=JobRequirements)
         
@@ -60,15 +39,7 @@ class RequirementsAnalysisAgent:
         ])
 
     async def analyze(self, job_description: str) -> JobRequirements:
-        """
-        Analyze a job description and extract structured requirements data.
-        
-        Args:
-            job_description (str): The job description text to analyze
-            
-        Returns:
-            JobRequirements: Structured data containing the analyzed requirements
-        """
+        """Analyze job requirements from description."""
         try:
             formatted_prompt = self.prompt.format_messages(
                 job_description=job_description,
@@ -76,10 +47,26 @@ class RequirementsAnalysisAgent:
             )
             
             response = await self.llm.ainvoke(formatted_prompt)
-            return self.output_parser.parse(response.content)
+            parsed_data = json.loads(response.content)
+            
+            return JobRequirements(
+                core_requirements=[
+                    Requirement(**req) for req in parsed_data["core_requirements"]
+                ],
+                nice_to_have=[
+                    Requirement(**req) for req in parsed_data["nice_to_have"]
+                ],
+                culture_indicators=[
+                    CultureIndicator(**ind) for ind in parsed_data["culture_indicators"]
+                ],
+                key_responsibilities=[
+                    Responsibility(**resp) for resp in parsed_data["key_responsibilities"]
+                ]
+            )
             
         except Exception as e:
-            raise Exception(f"Error analyzing job description: {str(e)}")
+            print(f"Error analyzing requirements: {str(e)}")
+            raise e
 
     async def analyze_and_vectorize(self, job_description: str, vector_store) -> Dict:
         """

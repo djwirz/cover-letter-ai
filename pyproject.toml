@@ -1,6 +1,11 @@
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = [
+    "tests/agents",
+    "tests/services",
+    "tests/settings",
+    "tests/api"
+]
 python_files = ["test_*.py"]
 addopts = "--strict-markers -v"
 markers = [
@@ -27,3 +32,7 @@ exclude_lines = [
     "pass",
     "raise ImportError"
 ]
+
+[tool.pytest]
+testpaths = ["tests"]
+python_files = "test_*.py"

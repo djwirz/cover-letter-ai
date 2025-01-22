@@ -1,8 +1,8 @@
 from datetime import datetime, UTC
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Depends
-from app.core.ai_service import EnhancedAIService
-from app.core.vector_store import VectorService
+from app.services.ai_service import EnhancedAIService
+from app.services.vector_store import VectorService
 from app.agents.skills_analysis import SkillsAnalysisAgent
 from app.agents.requirements_analysis import RequirementsAnalysisAgent
 from app.agents.strategy_analysis import CoverLetterStrategyAgent

@@ -1,5 +1,5 @@
 from postgrest import AsyncPostgrestClient
-from app.config import settings
+from app.settings.config import settings
 
 class Database:
     def __init__(self):

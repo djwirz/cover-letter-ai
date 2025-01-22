@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, Mock
 from typing import AsyncGenerator, Generator
 from fastapi.testclient import TestClient
 from app.main import app
-from app.services.database import Database
-from app.services.vector_store import VectorService
-from app.services.ai_service import EnhancedAIService
+from app.core.database import Database
+from app.core.vector_store import VectorService
+from app.core.ai_service import EnhancedAIService
 from app.api.dependencies import (
     get_db, get_vector_service, get_ai_service, 
     get_skills_agent, get_requirements_agent, get_strategy_agent, get_generation_agent

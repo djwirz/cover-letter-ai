@@ -1,6 +1,7 @@
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from typing import List, Dict
+from app.settings.config import settings  # Changed from app.config
 
 class EnhancedAIService:
     def __init__(self, vector_service):

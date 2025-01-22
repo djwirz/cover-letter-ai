@@ -111,3 +111,19 @@ class GenerateCoverLetterRequest(BaseModel):
 class RefineCoverLetterRequest(BaseModel):
     cover_letter: CoverLetter
     feedback: Dict[str, str]
+
+class GenerationPreferences(BaseModel):
+    """Preferences for cover letter generation."""
+    tone: Optional[str] = "professional"
+    length: Optional[str] = "medium"
+    focus_points: Optional[List[str]] = []
+    style_guide: Optional[Dict[str, Any]] = {}
+    custom_instructions: Optional[str] = None
+
+class JobRequirements(BaseModel):
+    """Job requirements analysis result."""
+    model_config = ConfigDict()
+    core_requirements: List[Requirement]
+    nice_to_have: List[Requirement]
+    culture_indicators: List[CultureIndicator]
+    key_responsibilities: List[Responsibility]

@@ -1,12 +1,13 @@
 from typing import Annotated
 from fastapi import Depends
-from app.core.database import Database
-from app.core.vector_store import VectorService
-from app.core.ai_service import EnhancedAIService
+from app.services.database import Database
+from app.services.vector_store import VectorService
+from app.services.ai_service import EnhancedAIService
 from app.agents.skills_analysis import SkillsAnalysisAgent
 from app.agents.requirements_analysis import RequirementsAnalysisAgent
 from app.agents.strategy_analysis import CoverLetterStrategyAgent
 from app.agents.generation_analysis import CoverLetterGenerationAgent
+from app.settings.config import Settings
 
 async def get_db():
     """Dependency for database connection."""
