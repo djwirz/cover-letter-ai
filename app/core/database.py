@@ -1,13 +1,18 @@
-from supabase.client import create_client
+from postgrest import AsyncPostgrestClient
 from app.config import settings
 
 class Database:
     def __init__(self):
-        try:
-            self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            # Test the connection
-            self.client.table('documents').select("*").limit(1).execute()
-            print("Successfully connected to Supabase")
-        except Exception as e:
-            print(f"Failed to connect to Supabase: {str(e)}")
-            raise
+        self.client = AsyncPostgrestClient(
+            base_url=f"{settings.SUPABASE_URL}/rest/v1",
+            headers={
+                "apikey": settings.SUPABASE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_KEY}"
+            }
+        )
+        print("Successfully connected to Supabase")
+        
+    async def close(self):
+        """Close any open connections."""
+        if hasattr(self, 'client'):
+            await self.client.aclose()

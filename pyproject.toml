@@ -1,7 +1,29 @@
 [tool.pytest.ini_options]
-pythonpath = [
-    "."
-]
 asyncio_mode = "auto"
-addopts = "-v"
 testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--strict-markers -v"
+markers = [
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests"
+]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/agents/utils/*",
+    "app/agents/base.py",
+    "app/agents/config.py",
+    "tests/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError"
+]
