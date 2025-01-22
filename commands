@@ -1,0 +1,39 @@
+# First, just create the new services directory
+mkdir -p app/services
+
+# Copy (don't move yet) ONE file as a test
+cp app/core/ai_service.py app/services/
+
+# No other changes yet
+
+# Backup critical directories
+cp -r app/core app/core.bak
+cp -r tests tests.bak
+
+# Move core services
+cp app/core/ai_service.py app/services/
+cp app/core/database.py app/services/
+cp app/core/vector_store.py app/services/
+
+mkdir -p tests/services
+mkdir -p tests/settings
+mkdir -p tests/api
+
+mkdir -p app/utils
+touch app/utils/cache.py
+touch app/utils/logging.py
+touch app/utils/metrics.py
+
+# Create test files for utils
+mkdir -p tests/utils
+touch tests/utils/test_cache.py
+touch tests/utils/test_logging.py
+touch tests/utils/test_metrics.py
+
+# Create test files for services
+touch tests/services/test_ai_service.py
+touch tests/services/test_database.py
+touch tests/services/test_vector_store.py
+
+# Create settings test file
+touch tests/settings/test_config.py 

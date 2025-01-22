@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.api.routes import router
 from fastapi.middleware.cors import CORSMiddleware
+from app.settings.config import Settings
 
 app = FastAPI(title="Cover Letter AI")
 

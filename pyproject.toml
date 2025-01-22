@@ -4,7 +4,8 @@ testpaths = [
     "tests/agents",
     "tests/services",
     "tests/settings",
-    "tests/api"
+    "tests/api",
+    "tests/utils"
 ]
 python_files = ["test_*.py"]
 addopts = "--strict-markers -v"
