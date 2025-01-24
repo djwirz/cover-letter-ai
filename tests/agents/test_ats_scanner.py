@@ -2,29 +2,30 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from langchain_community.chat_models import ChatOpenAI
 from app.agents.ats_scanner import ATSScannerAgent, ATSAnalysis, ATSIssue
+from app.agents.base import AgentConfig
 
 @pytest.fixture
 def mock_llm():
     return Mock(ainvoke=AsyncMock(return_value=Mock(content="""
-    {
-        "keyword_match_score": 0.85,
-        "parse_confidence": 0.92,
-        "key_terms_found": ["python", "aws", "leadership"],
-        "key_terms_missing": ["kubernetes"],
-        "format_issues": [
-            {
-                "type": "header_format",
-                "description": "Contact information not easily parseable",
-                "severity": "high",
-                "suggestion": "Place contact info at top in clear format"
-            }
-        ],
-        "headers_analysis": {
-            "has_name": true,
-            "has_email": true,
-            "has_phone": false
+{
+    "keyword_match_score": 0.85,
+    "parse_confidence": 0.92,
+    "key_terms_found": ["python", "aws", "leadership"],
+    "key_terms_missing": ["kubernetes"],
+    "format_issues": [
+        {
+            "type": "header_format",
+            "description": "Contact information not easily parseable",
+            "severity": "high",
+            "suggestion": "Place contact info at top in clear format"
         }
+    ],
+    "headers_analysis": {
+        "has_name": true,
+        "has_email": true,
+        "has_phone": false
     }
+}
     """)))
 
 @pytest.fixture
@@ -33,14 +34,43 @@ async def scanner_agent(mock_llm):
         agent = ATSScannerAgent()
         yield agent
 
+@pytest.fixture
+def agent_config():
+    return AgentConfig(
+        model_name="gpt-4",
+        temperature=0.7,
+        max_tokens=1000
+        # No need to pass the optional fields if not needed for tests
+    )
+
 @pytest.mark.asyncio
 async def test_scan_letter(scanner_agent):
     """Test basic ATS scanning functionality."""
-    cover_letter = "Sample cover letter content..."
-    job_description = "Sample job description..."
+    cover_letter = """
+Dear Hiring Manager,
+
+I am writing to express my interest in the Python Developer position at your company.
+With 5 years of experience in Python development and AWS cloud services, I believe I
+would be a great fit for this role.
+
+Best regards,
+John Doe
+    """
+    
+    job_description = """
+Senior Python Developer
+Required Skills:
+- 5+ years Python experience
+- AWS cloud services
+- Kubernetes experience
+- Leadership skills
+    """
+    
     requirements_analysis = {
         "core_requirements": [
-            {"skill": "python", "years_experience": 5}
+            {"skill": "python", "years_experience": 5},
+            {"skill": "aws", "years_experience": 3},
+            {"skill": "kubernetes", "years_experience": 2}
         ]
     }
     

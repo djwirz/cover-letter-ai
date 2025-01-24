@@ -1,26 +1,73 @@
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
+from fastapi.testclient import TestClient
+from app.main import app
+from app.api.dependencies import (
+    get_db, get_vector_service, get_ai_service,
+    get_skills_agent, get_requirements_agent,
+    get_strategy_agent, get_generation_agent,
+    get_ats_scanner_agent, get_content_validation_agent,
+    get_technical_term_agent
+)
 from tests.conftest import SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION
 from app.agents.generation_analysis import CoverLetter, CoverLetterSection
+from app.services.ai_service import ConcreteAIService
+from app.services.vector_service import VectorService
+from app.models.schemas import DocumentRequest  # Import your Pydantic model
 
 pytestmark = pytest.mark.asyncio
 
-async def test_process_document(test_client, mock_vector_service):
+@pytest.fixture
+def ai_service(vector_service):
+    return ConcreteAIService(vector_service)
+
+@pytest.fixture
+def mock_ai_service(mocker):
+    """Fixture to mock AI service."""
+    # Create a mock for the vector service
+    mock_vector_service = mocker.Mock(spec=VectorService)
+    mock_vector_service.process_document = AsyncMock(return_value={"id": "test_doc_id", "status": "processed"})
+    
+    # Patch the ConcreteAIService and set the vector_service attribute
+    ai_service = mocker.patch('app.services.ai_service.ConcreteAIService', autospec=True)
+    ai_service.return_value.vector_service = mock_vector_service  # Attach the mock vector service
+    
+    return ai_service
+
+async def test_process_document(test_client, mock_ai_service):
     """Test document processing endpoint."""
+    request_data = DocumentRequest(
+        content=SAMPLE_RESUME,
+        doc_type="resume",
+        metadata={"user_id": "123"}
+    )
+    
     response = test_client.post(
         "/api/documents",
-        json={
-            "content": SAMPLE_RESUME,
-            "doc_type": "resume",
-            "metadata": {"user_id": "123"}
-        }
+        json=request_data.model_dump()  # Convert the Pydantic model to a dictionary
     )
     
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == "test_doc_id"
     assert data["status"] == "processed"
-    mock_vector_service.process_document.assert_called_once()
+    
+    # Check if process_document was called
+    print("Checking if process_document was called...")
+    print(f"Call count: {mock_ai_service.return_value.vector_service.process_document.call_count}")
+    
+    # Check if the mock was called
+    if not mock_ai_service.return_value.vector_service.process_document.called:
+        print("process_document was not called.")
+    else:
+        print("process_document was called.")
+    
+    assert mock_ai_service.return_value.vector_service.process_document.called, "process_document was not called"
+    
+    # Assert that it was called with the correct parameters
+    mock_ai_service.return_value.vector_service.process_document.assert_called_once_with(
+        SAMPLE_RESUME, "resume", {"user_id": "123"}
+    )
 
 async def test_analyze_skills(test_client, mock_skills_agent):
     """Test skills analysis endpoint."""
@@ -339,3 +386,34 @@ async def test_standardize_terms(test_client, mock_technical_term_agent):
     assert response.status_code == 200
     assert "misaligned_terms" in response.json()
     mock_technical_term_agent.standardize_terms.assert_called_once()
+
+@pytest.fixture
+def test_client(
+    mock_db,
+    mock_vector_service,
+    mock_ai_service,
+    mock_skills_agent,
+    mock_requirements_agent,
+    mock_strategy_agent,
+    mock_generation_agent,
+    mock_ats_scanner_agent,
+    mock_content_validation_agent,
+    mock_technical_term_agent
+):
+    """Create a test client with mocked dependencies."""
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_vector_service] = lambda: mock_vector_service
+    app.dependency_overrides[get_ai_service] = lambda: mock_ai_service
+    app.dependency_overrides[get_skills_agent] = lambda: mock_skills_agent
+    app.dependency_overrides[get_requirements_agent] = lambda: mock_requirements_agent
+    app.dependency_overrides[get_strategy_agent] = lambda: mock_strategy_agent
+    app.dependency_overrides[get_generation_agent] = lambda: mock_generation_agent
+    app.dependency_overrides[get_ats_scanner_agent] = lambda: mock_ats_scanner_agent
+    app.dependency_overrides[get_content_validation_agent] = lambda: mock_content_validation_agent
+    app.dependency_overrides[get_technical_term_agent] = lambda: mock_technical_term_agent
+    
+    with TestClient(app) as client:
+        yield client
+        
+    # Clean up overrides after test
+    app.dependency_overrides.clear()

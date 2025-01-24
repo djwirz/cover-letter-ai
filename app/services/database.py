@@ -1,33 +1,71 @@
-from typing import Optional, AsyncGenerator
+from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.settings.config import Settings
+from app.settings.config import settings
+from app.agents.utils.logging import setup_logger
+from app.models.base import Base
+
+logger = setup_logger("Database")
 
 class Database:
-    def __init__(self, settings: Settings):
-        self.settings = settings
+    """Database service for managing connections and sessions"""
+    
+    def __init__(self):
         self.engine = None
         self.session_factory = None
-    
-    async def initialize(self):
+        self._initialized = False
+
+    async def initialize(self) -> None:
         """Initialize database connection"""
-        self.engine = create_async_engine(
-            self.settings.database_url,
-            echo=self.settings.debug_mode
-        )
-        
-        self.session_factory = sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
-    
-    async def close(self):
+        try:
+            self.engine = create_async_engine(
+                settings.database.url,
+                echo=settings.database.echo
+            )
+            
+            # Create session factory
+            self.session_factory = sessionmaker(
+                self.engine,
+                class_=AsyncSession,
+                expire_on_commit=False
+            )
+            
+            # Create tables
+            async with self.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            
+            self._initialized = True
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {str(e)}")
+            raise
+
+    async def close(self) -> None:
         """Close database connections"""
-        if self.engine:
+        if self._initialized and self.engine:
             await self.engine.dispose()
-    
+            self._initialized = False
+            logger.info("Database connections closed")
+
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """Get database session"""
+        """
+        Get an async database session
+        
+        Yields:
+            Async database session
+            
+        Raises:
+            Exception: If session creation fails
+        """
+        if not self._initialized:
+            raise Exception("Database not initialized")
+            
         async with self.session_factory() as session:
-            yield session
+            try:
+                yield session
+            except Exception as e:
+                logger.error(f"Database session error: {str(e)}")
+                await session.rollback()
+                raise
+            finally:
+                await session.close()

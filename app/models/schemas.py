@@ -13,8 +13,8 @@ class BaseSchema(BaseModel):
 
 class DocumentRequest(BaseSchema):
     content: str
-    doc_type: DocumentType
-    metadata: Optional[Dict] = Field(default_factory=dict)
+    doc_type: str
+    metadata: Dict[str, str]
 
 class GenerationRequest(BaseSchema):
     job_description: str

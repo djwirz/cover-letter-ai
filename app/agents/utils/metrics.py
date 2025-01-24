@@ -1,226 +1,100 @@
-from langchain_openai import ChatOpenAI
-from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import ValidationError
-from typing import Dict, List, Optional
-from logging import getLogger
-import traceback
-import json
-from datetime import datetime
-from app.models.schemas import SkillsAnalysis
+import time
+from typing import Dict, Any, Optional
+from dataclasses import dataclass, field
+from contextlib import contextmanager
+from app.agents.utils.logging import setup_logger
 
-logger = getLogger(__name__)
+logger = setup_logger("Metrics")
 
-class SkillsAnalysisAgent:
-    def __init__(self):
-        self.llm = ChatOpenAI(model="gpt-4", temperature=0)
-        self.logger = logger
-        self.skills_schema = {
-            "type": "object",
-            "properties": {
-                "technical_skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "skill": {"type": "string"},
-                            "level": {"type": "string"},
-                            "years": {"type": "number"},
-                            "context": {"type": "string"}
-                        }
-                    }
-                },
-                "soft_skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "skill": {"type": "string"},
-                            "evidence": {"type": "string"}
-                        }
-                    }
-                },
-                "achievements": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "description": {"type": "string"},
-                            "metrics": {"type": "string"},
-                            "skills_demonstrated": {"type": "array", "items": {"type": "string"}}
-                        }
-                    }
-                }
-            }
+@dataclass
+class Metric:
+    """Individual metric tracking"""
+    name: str
+    values: list = field(default_factory=list)
+    timestamps: list = field(default_factory=list)
+    
+    def record(self, value: float) -> None:
+        """Record a new metric value"""
+        self.values.append(value)
+        self.timestamps.append(time.time())
+        
+    def summary(self) -> Dict[str, Any]:
+        """Get metric summary statistics"""
+        if not self.values:
+            return {}
+            
+        return {
+            "count": len(self.values),
+            "min": min(self.values),
+            "max": max(self.values),
+            "mean": sum(self.values) / len(self.values),
+            "last": self.values[-1],
+            "last_timestamp": self.timestamps[-1]
         }
-        self._setup_agent()
 
-    def _create_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_messages([
-            ("system", """You are an expert skills analysis agent specialized in parsing resumes 
-            and professional documents. Your goal is to extract, categorize, and evaluate skills 
-            and achievements with high precision. Focus on:
-            1. Technical skills with proficiency levels
-            2. Soft skills with supporting evidence
-            3. Quantifiable achievements
-            4. Years of experience in each area
-            
-            Always look for specific evidence and context rather than just listing skills."""),
-            ("user", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
+class PerformanceMonitor:
+    """Performance monitoring and metrics collection"""
+    
+    def __init__(self):
+        self.metrics: Dict[str, Metric] = {}
+        self._start_time: Optional[float] = None
+        self._active = False
 
-    def _setup_agent(self):
-        self.tools = [
-            Tool(
-                name="extract_skills",
-                func=self._extract_skills,
-                description="Extracts and categorizes skills from text"
-            ),
-            Tool(
-                name="analyze_achievements",
-                func=self._analyze_achievements,
-                description="Identifies and analyzes quantifiable achievements"
-            ),
-            Tool(
-                name="assess_proficiency",
-                func=self._assess_proficiency,
-                description="Evaluates skill levels based on context"
-            )
-        ]
+    async def initialize(self) -> None:
+        """Initialize the metrics collector"""
+        self.metrics = {}
+        self._active = True
+        logger.info("Performance monitoring initialized")
 
-        self.agent = create_openai_functions_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=self._create_prompt()
-        )
-        
-        self.agent_executor = AgentExecutor(
-            agent=self.agent,
-            tools=self.tools,
-            verbose=True
-        )
+    async def close(self) -> None:
+        """Clean up metrics collector"""
+        self._active = False
+        logger.info("Performance monitoring stopped")
 
-    async def _extract_skills(self, text: str) -> Dict:
-        """Extracts technical and soft skills from text."""
-        try:
-            response = await self.llm.invoke(f"""
-            Analyze this text and extract skills:
-            {text}
-            
-            Return the skills in JSON format following this schema:
-            {json.dumps(self.skills_schema, indent=2)}
-            """)
-            return json.loads(response.content)
-        except Exception as e:
-            self.logger.error(f"Error extracting skills: {str(e)}")
-            return {}
-
-    async def _analyze_achievements(self, text: str) -> List[Dict]:
-        """Identifies quantifiable achievements and their impact."""
-        try:
-            response = await self.llm.invoke(f"""
-            Analyze this text and extract quantifiable achievements.
-            Focus on specific metrics, improvements, and impact.
-            Format each achievement with:
-            - Description
-            - Specific metrics/numbers
-            - Skills demonstrated
-            """)
-            return json.loads(response.content)
-        except Exception as e:
-            self.logger.error(f"Error analyzing achievements: {str(e)}")
-            return []
-
-    async def _assess_proficiency(self, skill_data: Dict) -> Dict:
-        """Evaluates skill levels based on context and evidence."""
-        try:
-            response = await self.llm.invoke(f"""
-            Evaluate the proficiency level for each skill based on:
-            {json.dumps(skill_data, indent=2)}
-            
-            Consider:
-            - Years of experience
-            - Complexity of projects
-            - Leadership/ownership level
-            - Technical depth demonstrated
-            
-            Return a proficiency assessment (Beginner/Intermediate/Advanced/Expert)
-            with supporting evidence.
-            """)
-            return json.loads(response.content)
-        except Exception as e:
-            self.logger.error(f"Error assessing proficiency: {str(e)}")
-            return {}
-
-    async def _run_analysis_pipeline(self, text: str) -> Dict:
-        """Runs the complete analysis pipeline."""
-        try:
-            raw_analysis = await self.agent_executor.ainvoke({
-                "input": text,
-                "output_schema": self.skills_schema
-            })
-
-            structured_analysis = {
-                "technical_skills": [],
-                "soft_skills": [],
-                "achievements": []
-            }
-
-            # Process the raw analysis into structured format
-            if raw_result := await self._structure_analysis(raw_analysis["output"]):
-                structured_analysis.update(raw_result)
-
-            return {
-                "skills_analysis": structured_analysis,
-                "metadata": {
-                    "model_used": "gpt-4",
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "version": "1.0"
-                }
-            }
-        except Exception as e:
-            self.logger.error(f"Pipeline failed: {str(e)}")
-            raise
-
-    async def _structure_analysis(self, raw_analysis: str) -> Dict:
-        """Converts raw analysis into structured format."""
-        prompt = f"""
-        Convert this analysis into a structured format following exactly this schema:
-        {json.dumps(self.skills_schema, indent=2)}
-
-        Analysis to convert:
-        {raw_analysis}
-        
-        Ensure all fields match the schema exactly and all values are appropriate for their types.
+    @contextmanager
+    def track(self) -> None: # type: ignore
         """
+        Context manager for tracking operation performance
         
-        try:
-            response = await self.llm.invoke(prompt)
-            return json.loads(response.content)
-        except Exception as e:
-            self.logger.error(f"Error structuring analysis: {str(e)}")
-            return {}
-
-    async def analyze(self, resume_text: str) -> Dict:
-        """Main method to analyze a resume."""
-        try:
-            # Input validation
-            if not resume_text or len(resume_text.strip()) < 50:
-                raise ValueError("Resume text too short or empty")
-
-            # Run analysis
-            result = await self._run_analysis_pipeline(resume_text)
+        Yields:
+            None
+        """
+        if not self._active:
+            yield
+            return
             
-            # Validate output against schema
-            try:
-                SkillsAnalysis(**result["skills_analysis"])
-            except ValidationError as e:
-                self.logger.error(f"Output validation failed: {str(e)}")
-                raise
+        start_time = time.perf_counter()
+        try:
+            yield
+        finally:
+            duration = time.perf_counter() - start_time
+            self.record("operation_duration", duration)
 
-            return result
+    def record(self, metric_name: str, value: float) -> None:
+        """
+        Record a metric value
+        
+        Args:
+            metric_name: Name of the metric to record
+            value: Value to record
+        """
+        if not self._active:
+            return
+            
+        if metric_name not in self.metrics:
+            self.metrics[metric_name] = Metric(name=metric_name)
+            
+        self.metrics[metric_name].record(value)
+        logger.debug(f"Recorded metric: {metric_name}={value}")
 
-        except Exception as e:
-            self.logger.error(f"Analysis failed: {traceback.format_exc()}")
-            raise
+    def get_metrics(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get all recorded metrics with summaries
+        
+        Returns:
+            Dictionary of metric summaries
+        """
+        return {
+            name: metric.summary()
+            for name, metric in self.metrics.items()
+        }

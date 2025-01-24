@@ -1,8 +1,8 @@
 from datetime import datetime, UTC
-from typing import Annotated
+from typing import Annotated, Dict
 from fastapi import APIRouter, HTTPException, Depends
 from app.agents import requirements_analysis
-from app.services.ai_service import EnhancedAIService
+from app.services.ai_service import EnhancedAIService, ConcreteAIService
 from app.services.vector_store import VectorService
 from app.agents.skills_analysis import SkillsAnalysisAgent
 from app.agents.requirements_analysis import RequirementsAnalysisAgent
@@ -22,24 +22,23 @@ from app.api.dependencies import (
     get_requirements_agent, get_strategy_agent, get_generation_agent,
     get_ats_scanner_agent, get_content_validation_agent, get_technical_term_agent
 )
+import logging
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
 @router.post("/api/documents", response_model=dict)
 async def process_document(
-    request: DocumentRequest,
-    vector_service: Annotated[VectorService, Depends(get_vector_service)]
+    content: str,
+    doc_type: str,
+    metadata: Dict[str, str],
+    ai_service: ConcreteAIService = Depends(get_ai_service)
 ):
-    """Process and store a document in the vector database."""
-    try:
-        doc_id = await vector_service.process_document(
-            request.content,
-            request.doc_type,
-            request.metadata
-        )
-        return {"id": doc_id, "status": "processed"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    logger.info("Processing document...")
+    result = await ai_service.vector_service.process_document(content, doc_type, metadata)
+    logger.info("Document processed with result: %s", result)
+    return result
 
 @router.post("/api/analyze/skills")
 async def analyze_skills(
