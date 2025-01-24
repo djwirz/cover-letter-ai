@@ -34,40 +34,55 @@ def mock_ai_service(mocker):
     
     return ai_service
 
-async def test_process_document(test_client, mock_ai_service):
+async def test_process_document(test_client, mocker):
     """Test document processing endpoint."""
-    request_data = DocumentRequest(
-        content=SAMPLE_RESUME,
-        doc_type="resume",
-        metadata={"user_id": "123"}
+    # Create mock vector service
+    mock_vector_service = mocker.Mock()
+    mock_vector_service.process_document = mocker.AsyncMock(
+        return_value={"id": "test_doc_id", "status": "processed"}
     )
     
-    response = test_client.post(
-        "/api/documents",
-        json=request_data.model_dump()  # Convert the Pydantic model to a dictionary
-    )
+    # Create mock AI service
+    mock_ai_service = mocker.Mock()
+    mock_ai_service.vector_service = mock_vector_service
     
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == "test_doc_id"
-    assert data["status"] == "processed"
-    
-    # Check if process_document was called
-    print("Checking if process_document was called...")
-    print(f"Call count: {mock_ai_service.return_value.vector_service.process_document.call_count}")
-    
-    # Check if the mock was called
-    if not mock_ai_service.return_value.vector_service.process_document.called:
-        print("process_document was not called.")
-    else:
-        print("process_document was called.")
-    
-    assert mock_ai_service.return_value.vector_service.process_document.called, "process_document was not called"
-    
-    # Assert that it was called with the correct parameters
-    mock_ai_service.return_value.vector_service.process_document.assert_called_once_with(
-        SAMPLE_RESUME, "resume", {"user_id": "123"}
-    )
+    # Set up dependency override
+    original_get_ai_service = app.dependency_overrides.get(get_ai_service)
+    app.dependency_overrides[get_ai_service] = lambda: mock_ai_service
+
+    try:
+        request_data = DocumentRequest(
+            content=SAMPLE_RESUME,
+            doc_type="resume",
+            metadata={"user_id": "123"}
+        )
+        
+        response = test_client.post(
+            "/api/documents",
+            json=request_data.model_dump()
+        )
+        
+        # Print response for debugging
+        print(f"Response status code: {response.status_code}")
+        print(f"Response body: {response.json() if response.status_code == 200 else response.text}")
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == "test_doc_id"
+        assert data["status"] == "processed"
+        
+        # Verify mock was called correctly
+        mock_vector_service.process_document.assert_called_once_with(
+            SAMPLE_RESUME,
+            "resume",
+            {"user_id": "123"}
+        )
+    finally:
+        # Restore original dependency if there was one
+        if original_get_ai_service:
+            app.dependency_overrides[get_ai_service] = original_get_ai_service
+        else:
+            del app.dependency_overrides[get_ai_service]
 
 async def test_analyze_skills(test_client, mock_skills_agent):
     """Test skills analysis endpoint."""

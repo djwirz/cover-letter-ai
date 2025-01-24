@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.services.database import Database
 from app.services.vector_store import VectorService
-from app.services.ai_service import EnhancedAIService
+from app.services.ai_service import ConcreteAIService, EnhancedAIService
 from app.api.dependencies import (
     get_db, get_vector_service, get_ai_service, 
     get_skills_agent, get_requirements_agent, get_strategy_agent, get_generation_agent,
@@ -52,10 +52,26 @@ async def mock_vector_service() -> AsyncGenerator[VectorService, None]:
     yield service
 
 @pytest.fixture
-async def mock_ai_service() -> AsyncGenerator[EnhancedAIService, None]:
-    service = Mock(spec=EnhancedAIService)
-    service.generate_cover_letter = AsyncMock(return_value="Generated cover letter content...")
-    yield service
+def mock_ai_service():
+    """Create a mock AI service with properly configured vector service."""
+    # Create the mock vector service first
+    mock_vector_service = Mock()
+    mock_vector_service.process_document = AsyncMock(
+        return_value={"id": "test_doc_id", "status": "processed"}
+    )
+    
+    # Create the mock AI service with the spec
+    mock_service = Mock(spec=ConcreteAIService)
+    
+    # Add the vector_service attribute
+    mock_service.vector_service = mock_vector_service
+    
+    # Add any other needed mock methods
+    mock_service.generate_cover_letter = AsyncMock(
+        return_value="Generated cover letter content..."
+    )
+    
+    return mock_service
 
 @pytest.fixture
 async def mock_skills_agent():

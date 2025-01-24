@@ -30,15 +30,50 @@ logger = logging.getLogger(__name__)
 
 @router.post("/api/documents", response_model=dict)
 async def process_document(
-    content: str,
-    doc_type: str,
-    metadata: Dict[str, str],
+    request: DocumentRequest,
     ai_service: ConcreteAIService = Depends(get_ai_service)
 ):
-    logger.info("Processing document...")
-    result = await ai_service.vector_service.process_document(content, doc_type, metadata)
-    logger.info("Document processed with result: %s", result)
-    return result
+    """Process document endpoint."""
+    logger.info(f"Processing document of type: {request.doc_type}")
+    
+    # Validate service setup
+    if not ai_service:
+        logger.error("AI service not initialized")
+        raise HTTPException(
+            status_code=500, 
+            detail="AI service not initialized"
+        )
+        
+    if not hasattr(ai_service, 'vector_service'):
+        logger.error("AI service missing vector_service attribute")
+        raise HTTPException(
+            status_code=500, 
+            detail="AI service configuration error"
+        )
+        
+    if not ai_service.vector_service:
+        logger.error("Vector service not initialized")
+        raise HTTPException(
+            status_code=500, 
+            detail="Vector service not initialized"
+        )
+
+    try:
+        # Process the document
+        result = await ai_service.vector_service.process_document(
+            request.content,
+            request.doc_type,
+            request.metadata
+        )
+        logger.info(f"Document processed successfully: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error processing document: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing document: {str(e)}"
+        )
 
 @router.post("/api/analyze/skills")
 async def analyze_skills(
