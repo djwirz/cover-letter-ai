@@ -43,39 +43,39 @@ class ATSScannerAgent:
         self,
         cover_letter: str,
         job_description: str,
-        requirements_analysis: Dict  # From your existing RequirementsAnalysisAgent
+        requirements_analysis: Dict
     ) -> ATSAnalysis:
         """
         Analyzes cover letter for ATS compatibility, using insights from 
         requirements analysis.
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an ATS system expert. Analyze this cover letter for 
-            compatibility with major ATS systems (Workday, Greenhouse, Lever, etc).
-            
-            Focus on:
-            1. Keyword identification and matching
-            2. Format and parsing issues
-            3. Header and contact information parsing
-            4. Technical term consistency
-            
-            Consider both basic ATS parsing and modern ML-based ATS systems.
-            """),
-            ("human", """Cover Letter:
-            {cover_letter}
-            
-            Job Description:
-            {job_description}
-            
-            Known Requirements:
-            {requirements}
-            
-            Analyze for ATS compatibility and provide structured feedback.
-            {format_instructions}
-            """)
-        ])
-        
         try:
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", """You are an ATS system expert. Analyze this cover letter for 
+                compatibility with major ATS systems (Workday, Greenhouse, Lever, etc).
+                
+                Focus on:
+                1. Keyword identification and matching
+                2. Format and parsing issues
+                3. Header and contact information parsing
+                4. Technical term consistency
+                
+                Return a structured analysis following the exact schema provided.
+                """),
+                ("human", """Cover Letter:
+                {cover_letter}
+                
+                Job Description:
+                {job_description}
+                
+                Known Requirements:
+                {requirements}
+                
+                Analyze for ATS compatibility and provide structured feedback.
+                {format_instructions}
+                """)
+            ])
+            
             messages = prompt.format_messages(
                 cover_letter=cover_letter,
                 job_description=job_description,
@@ -84,8 +84,22 @@ class ATSScannerAgent:
             )
             
             response = await self.llm.ainvoke(messages)
-            return self.output_parser.parse(response.content)
             
+            # Add default values if parsing fails
+            try:
+                return self.output_parser.parse(response.content)
+            except Exception as parse_error:
+                print(f"Error parsing ATS response: {str(parse_error)}")
+                # Return a default ATSAnalysis object
+                return ATSAnalysis(
+                    keyword_match_score=0.0,
+                    parse_confidence=0.0,
+                    key_terms_found=[],
+                    key_terms_missing=[],
+                    format_issues=[],
+                    headers_analysis={}
+                )
+                
         except Exception as e:
             raise Exception(f"Error during ATS analysis: {str(e)}")
     

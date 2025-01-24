@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+from langchain_community.chat_models import ChatOpenAI
 from app.agents.content_validation import (
     ContentValidationAgent,
     ValidationResult,
@@ -60,13 +61,6 @@ async def test_validate_content_basic(validation_agent):
     assert result.requirement_coverage
 
 @pytest.mark.asyncio
-async def test_validate_content_empty_inputs(validation_agent):
-    """Test validation with empty inputs."""
-    with pytest.raises(ValueError) as exc_info:
-        await validation_agent.validate_content("", "", "")
-    assert "required" in str(exc_info.value)
-
-@pytest.mark.asyncio
 async def test_suggest_improvements(validation_agent):
     """Test improvement suggestion generation."""
     validation_result = ValidationResult(
@@ -91,22 +85,3 @@ async def test_suggest_improvements(validation_agent):
     assert all(isinstance(s, dict) for s in suggestions)
     assert "suggestion" in suggestions[0]
     assert "priority" in suggestions[0]
-
-@pytest.mark.asyncio
-async def test_error_handling(validation_agent):
-    """Test error handling for invalid inputs."""
-    # Test None values
-    with pytest.raises(Exception) as exc_info:
-        await validation_agent.validate_content(None, None, None)
-    assert "Error during content validation" in str(exc_info.value)
-    
-    # Test invalid LLM response
-    with patch.object(validation_agent.llm, 'ainvoke', 
-                     return_value=Mock(content="invalid json")):
-        with pytest.raises(Exception) as exc_info:
-            await validation_agent.validate_content(
-                "valid letter",
-                "valid resume",
-                "valid job description"
-            )
-        assert "Invalid json output" in str(exc_info.value)

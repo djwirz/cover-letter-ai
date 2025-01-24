@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+from langchain_community.chat_models import ChatOpenAI
 from app.agents.ats_scanner import ATSScannerAgent, ATSAnalysis, ATSIssue
 
 @pytest.fixture
@@ -35,8 +36,6 @@ async def scanner_agent(mock_llm):
 @pytest.mark.asyncio
 async def test_scan_letter(scanner_agent):
     """Test basic ATS scanning functionality."""
-    
-    # Sample inputs
     cover_letter = "Sample cover letter content..."
     job_description = "Sample job description..."
     requirements_analysis = {
@@ -62,7 +61,6 @@ async def test_scan_letter(scanner_agent):
 @pytest.mark.asyncio
 async def test_suggest_improvements(scanner_agent):
     """Test improvement suggestions generation."""
-    
     analysis = ATSAnalysis(
         keyword_match_score=0.85,
         parse_confidence=0.92,

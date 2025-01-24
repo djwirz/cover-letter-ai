@@ -1,15 +1,17 @@
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field, ConfigDict
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 
 class CoverLetterSection(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     content: str = Field(description="The actual content of this section")
     purpose: str = Field(description="The strategic purpose of this section")
     key_points: List[str] = Field(description="Main points addressed in this section")
 
 class CoverLetter(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     greeting: str = Field(description="Personalized greeting")
     introduction: CoverLetterSection
     body_paragraphs: List[CoverLetterSection]

@@ -8,10 +8,12 @@ from app.services.vector_store import VectorService
 from app.services.ai_service import EnhancedAIService
 from app.api.dependencies import (
     get_db, get_vector_service, get_ai_service, 
-    get_skills_agent, get_requirements_agent, get_strategy_agent, get_generation_agent
+    get_skills_agent, get_requirements_agent, get_strategy_agent, get_generation_agent,
+    get_ats_scanner_agent, get_content_validation_agent, get_technical_term_agent  # Added these
 )
 from unittest.mock import patch
 from app.agents.generation_analysis import CoverLetterGenerationAgent, CoverLetter, CoverLetterSection
+from langchain_community.chat_models import ChatOpenAI
 
 # Test data constants
 SAMPLE_RESUME = """
@@ -112,7 +114,10 @@ def test_client(
     mock_skills_agent,
     mock_requirements_agent,
     mock_strategy_agent,
-    mock_generation_agent
+    mock_generation_agent,
+    mock_ats_scanner_agent,  # Added this
+    mock_content_validation_agent,  # Added this
+    mock_technical_term_agent  # Added this
 ) -> Generator[TestClient, None, None]:
     """Create a test client with mocked dependencies."""
     app.dependency_overrides[get_db] = lambda: mock_db
@@ -122,8 +127,49 @@ def test_client(
     app.dependency_overrides[get_requirements_agent] = lambda: mock_requirements_agent
     app.dependency_overrides[get_strategy_agent] = lambda: mock_strategy_agent
     app.dependency_overrides[get_generation_agent] = lambda: mock_generation_agent
+    app.dependency_overrides[get_ats_scanner_agent] = lambda: mock_ats_scanner_agent  # Added this
+    app.dependency_overrides[get_content_validation_agent] = lambda: mock_content_validation_agent  # Added this
+    app.dependency_overrides[get_technical_term_agent] = lambda: mock_technical_term_agent  # Added this
 
     with TestClient(app) as client:
         yield client
 
     app.dependency_overrides.clear()
+
+@pytest.fixture
+async def mock_ats_scanner_agent():
+    agent = Mock()
+    agent.scan_letter = AsyncMock(return_value={
+        "keyword_match_score": 0.85,
+        "parse_confidence": 0.92,
+        "key_terms_found": ["python", "aws"],
+        "key_terms_missing": ["kubernetes"],
+        "format_issues": [],
+        "headers_analysis": {}
+    })
+    agent.suggest_improvements = AsyncMock(return_value=[])
+    yield agent
+
+@pytest.fixture
+async def mock_content_validation_agent():
+    agent = Mock()
+    agent.validate_content = AsyncMock(return_value={
+        "issues": [],
+        "supported_claims": [],
+        "requirement_coverage": {},
+        "confidence_score": 0.9
+    })
+    agent.suggest_improvements = AsyncMock(return_value=[])
+    yield agent
+
+@pytest.fixture
+async def mock_technical_term_agent():
+    agent = Mock()
+    agent.standardize_terms = AsyncMock(return_value={
+        "job_terms": {},
+        "letter_terms": {},
+        "misaligned_terms": [],
+        "suggested_changes": []
+    })
+    agent.suggest_term_updates = AsyncMock(return_value=[])
+    yield agent

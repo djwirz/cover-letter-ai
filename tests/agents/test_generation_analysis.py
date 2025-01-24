@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 import json
+from langchain_community.chat_models import ChatOpenAI
 
 class MockLLM:
     async def ainvoke(self, messages):

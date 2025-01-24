@@ -1,6 +1,6 @@
 fastapi
 langchain
-langchain-community
+langchain-community>=0.0.10
 langchain-openai
 openai
 pydantic

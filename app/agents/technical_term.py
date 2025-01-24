@@ -1,6 +1,7 @@
 from typing import Dict, List, Set, Tuple
 from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from langchain.schema.output_parser import OutputParserException
