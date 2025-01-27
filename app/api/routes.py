@@ -3,6 +3,7 @@ from typing import Annotated, Dict
 from fastapi import APIRouter, HTTPException, Depends
 from app.agents import requirements_analysis
 from app.services.ai_service import EnhancedAIService, ConcreteAIService
+from app.services.resume_service import ResumeService
 from app.services.vector_store import VectorService
 from app.agents.skills_analysis import SkillsAnalysisAgent
 from app.agents.requirements_analysis import RequirementsAnalysisAgent
@@ -11,14 +12,15 @@ from app.agents.generation_analysis import CoverLetterGenerationAgent
 from app.agents.ats_scanner import ATSScannerAgent
 from app.agents.content_validation import ContentValidationAgent
 from app.agents.technical_term import TechnicalTermAgent
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.schemas import (
     DocumentRequest, DocumentType, GenerationRequest, GenerationResponse,
     AnalyzeSkillsRequest, AnalyzeRequirementsRequest, AnalyzeStrategyRequest,
     GenerateCoverLetterRequest, RefineCoverLetterRequest, ATSAnalysisRequest,
-    ContentValidationRequest, TechnicalTermRequest
+    ContentValidationRequest, ResumeResponse, ResumeUploadRequest, TechnicalTermRequest
 )
 from app.api.dependencies import (
-    get_vector_service, get_ai_service, get_skills_agent,
+    get_db, get_vector_service, get_ai_service, get_skills_agent,
     get_requirements_agent, get_strategy_agent, get_generation_agent,
     get_ats_scanner_agent, get_content_validation_agent, get_technical_term_agent
 )
@@ -340,3 +342,43 @@ async def standardize_terms(
     except Exception as e:
         print(f"Error in standardize_terms: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+resume_service = ResumeService()
+
+@router.post("/api/resume", response_model=ResumeResponse)
+async def upload_resume(
+    request: ResumeUploadRequest,
+    session: AsyncSession = Depends(get_db)
+):
+    """Upload or update the active resume."""
+    try:
+        result = await resume_service.store_resume(
+            session,
+            request.content,
+            request.metadata
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error storing resume: {str(e)}"
+        )
+
+@router.get("/api/resume", response_model=ResumeResponse)
+async def get_resume(session: AsyncSession = Depends(get_db)):
+    """Get the active resume."""
+    try:
+        result = await resume_service.get_active_resume(session)
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail="No active resume found"
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving resume: {str(e)}"
+        )

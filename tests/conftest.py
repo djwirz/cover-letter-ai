@@ -30,12 +30,20 @@ Looking for a Senior Software Engineer with:
 
 class MockDatabase:
     """Mock database for testing."""
+    def __init__(self):
+        self.execute = AsyncMock()
+        # Create a mock result that returns immediately
+        mock_result = Mock()
+        mock_result.first = Mock(return_value=None)
+        self.execute.return_value = mock_result
+        self.commit = AsyncMock()
+        self.rollback = AsyncMock()
+        
     async def close(self):
         pass
 
-    @property
-    def client(self):
-        return Mock()
+    async def get_session(self):
+        yield self
 
 @pytest.fixture
 async def mock_db() -> AsyncGenerator[Database, None]:
@@ -189,3 +197,9 @@ async def mock_technical_term_agent():
     })
     agent.suggest_term_updates = AsyncMock(return_value=[])
     yield agent
+
+@pytest.fixture
+async def async_session(mock_db):
+    """Reuse mock_db as async_session for consistency."""
+    mock_db.execute.return_value.first.return_value = None
+    yield mock_db

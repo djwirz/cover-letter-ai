@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Any, Optional, Dict, List
 from enum import Enum
@@ -127,3 +128,12 @@ class ContentValidationRequest(BaseSchema):
 class TechnicalTermRequest(BaseSchema):
     job_description: str
     cover_letter: str
+
+class ResumeUploadRequest(BaseModel):
+    content: str
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+class ResumeResponse(BaseModel):
+    content: str
+    last_updated: datetime
+    metadata: Optional[Dict[str, Any]] = None

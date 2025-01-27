@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import pytest
 from unittest.mock import AsyncMock, Mock
 from fastapi.testclient import TestClient
@@ -432,3 +433,50 @@ def test_client(
         
     # Clean up overrides after test
     app.dependency_overrides.clear()
+
+async def test_upload_resume(test_client, mock_db):
+    """Test resume upload endpoint."""
+    # Configure mock for no existing resume
+    mock_result = Mock()
+    mock_result.first = Mock(return_value=None)
+    mock_db.execute.return_value = mock_result
+    
+    response = test_client.post(
+        "/api/resume",
+        json={
+            "content": "Test resume content",
+            "metadata": {"format": "text"}
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "Test resume content"
+    assert "last_updated" in data
+
+async def test_get_resume(test_client, mock_db):
+    """Test resume retrieval endpoint."""
+    # Mock resume exists
+    mock_resume = Mock()
+    mock_resume.content = "Test resume"
+    mock_resume.updated_at = datetime.now(UTC)
+    mock_resume.metadata = {}
+    
+    mock_result = Mock()
+    mock_result.first = Mock(return_value=mock_resume)
+    mock_db.execute.return_value = mock_result
+    
+    response = test_client.get("/api/resume")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "Test resume"
+
+async def test_get_resume_not_found(test_client, mock_db):
+    """Test resume retrieval when no resume exists."""
+    # Configure mock for no resume
+    mock_result = Mock()
+    mock_result.first = Mock(return_value=None)
+    mock_db.execute.return_value = mock_result
+    
+    response = test_client.get("/api/resume")
+    assert response.status_code == 404
